@@ -1,0 +1,6 @@
+{
+  "task": "Naming Conventions",
+  "fev.sh": "none",
+  "fev_cnt": 0,
+  "llm": "No M5 configs (no generate conditions remain after simplification). No multiple assignments. No generate for loops. Naming: all 11 signals comply with TLV naming rules (checked manually, rename_sigs.py needs Python 3.12)."
+}

@@ -1,0 +1,6 @@
+{
+  "task": "Non-vector Signals",
+  "fev.sh": "none",
+  "fev_cnt": 0,
+  "llm": "Non-vector Signals: all internal signals in serv_aligner are bit-vector types. No structs, signed types, or complex types. No SV_plus content remains. Task complete."
+}

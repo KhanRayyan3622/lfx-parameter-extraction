@@ -1,0 +1,6 @@
+{
+  "task": "Naming Conventions",
+  "fev.sh": "none",
+  "fev_cnt": 0,
+  "llm": "Naming Conventions: rename_sigs.py needs Python 3.12 (only 3.11 available). Checked manually: all 4 internal signals (ibus_rdt_concat, ack_en, lower_hw, ctrl_misal) already comply with TLV naming rules. No changes needed."
+}

@@ -1,0 +1,1 @@
+- rename_sigs.py requires Python 3.12+ but environment has 3.11.2; naming checked manually.
