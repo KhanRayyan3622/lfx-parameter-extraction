@@ -1,0 +1,49 @@
+architectural_parameters:
+  - name: cache_block_size
+    description: >
+      The size of each cache block, representing a contiguous, naturally aligned
+      power-of-two range of memory locations. This parameter is uniform across
+      the entire system.
+    type: integer
+    unit: bytes
+    constraints:
+      - must_be_power_of_two: true
+      - naturally_aligned: true
+      - uniform_system_wide: true
+    confidence: HIGH
+    source: "explicitly stated as implementation-specific"
+
+  - name: cache_capacity
+    description: >
+      The total capacity of a cache, representing the total amount of data that
+      can be stored. This is an implementation-specific parameter that varies
+      between RISC-V implementations.
+    type: integer
+    unit: bytes
+    constraints:
+      - implementation_specific: true
+    confidence: HIGH
+    source: "explicitly stated as implementation-specific"
+
+  - name: cache_organization
+    description: >
+      The structural organization of a cache, which may include parameters such
+      as associativity, replacement policy, and internal hierarchy. This is
+      implementation-specific and discoverable via the execution environment.
+    type: object
+    constraints:
+      - implementation_specific: true
+      - discoverable_by_software: true
+    confidence: HIGH
+    source: "explicitly stated as implementation-specific"
+
+  - name: cache_block_uniformity
+    description: >
+      A constraint requiring that cache block size remains uniform throughout
+      the system in CMO (Cache Management Operation) extensions.
+    type: boolean
+    constraints:
+      - applies_to: CMO_extensions
+      - required_value: true
+    confidence: HIGH
+    source: "explicitly stated in CMO extension requirements"
