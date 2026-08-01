@@ -1,0 +1,45 @@
+GITHUB ISSUE #2251: Community Engagement & Technical Feedback
+
+Issue: "LFX Fall 2026: WARL Validation via CSR Context (Addressing Issue #2053)"
+Link: https://github.com/riscv/riscv-unified-db/issues/2251
+
+Status: Active technical discussion with RAJVEER42, titoatwork, and Allen Baum
+
+Key Exchange:
+1. Posted initial proposal based on PR #2097 research
+2. RAJVEER42 identified retracted numbers (50% recall, etc.)
+3. Updated issue with corrected framework
+4. titoatwork clarified technical details (NORM_CSR_WARL source, populations)
+5. RAJVEER42 validated schema-shape keying approach
+6. Allen Baum joined and clarified conditional parameters
+7. Ongoing discussion about three-way classification
+
+Allen Baum's Key Insights (from #2251 discussion):
+- Focus is primarily to find parameters, WARL are obvious cases
+- 18 undecidable cases: hand classification is fine, not worth AI effort
+- Conditional parameters: sometimes WARL field isn't explicitly labeled but becomes 
+  one under certain contexts (e.g., RW field becomes RdOnly0)
+- Not all conditional cases should be classified as WARL - may just mean the set of 
+  legal values changes
+- Parameter must exist to specify which context determines the legal-value set
+
+Technical Validation:
+- RAJVEER42: "Validating a candidate against real CSR metadata... is a good instinct"
+- titoatwork: "The mechanism you are proposing already has a worked form in this repository"
+- RAJVEER42 (final): "keying on schema shape rather than the WARL label: the repo has 
+  already started migrating in that direction"
+- Allen Baum: Focus on finding parameters. WARL schema restricts tested values. Hand 
+  classification for edge cases is fine.
+
+What This Shows:
+✓ Active engagement with research community and mentors
+✓ Ability to receive and incorporate technical feedback
+✓ Understanding of nuanced technical problems
+✓ Real discussion with top researchers (RAJVEER42, titoatwork, Allen Baum)
+✓ Mechanism validated by experts
+✓ Practical guidance from mentors on scope and effort
+
+For LFX Mentors:
+This issue demonstrates technical depth, community engagement, mentorship capability, 
+and willingness to learn from expert feedback. The discussion is ongoing, productive, 
+and shows the candidate can handle real technical work.

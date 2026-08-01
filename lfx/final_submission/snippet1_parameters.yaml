@@ -1,0 +1,97 @@
+# RISC-V Parameter Extraction - Snippet 1 (Cache Specification 19.3.1)
+# Extracted: July 28, 2026
+# Model: Claude 3.5 Sonnet
+
+---
+
+kind: parameter
+name: CACHE_BLOCK_SIZE
+long_name: "Cache Block Size (in bytes)"
+description: |
+  The observable size of a cache block. Different RISC-V implementations 
+  choose different cache block sizes (32, 64, 128, 256, 512, 1024, 2048, 4096 bytes).
+  Implementations can discover this through CSR instructions.
+type: enum
+unit: bytes
+legal_values: [32, 64, 128, 256, 512, 1024, 2048, 4096]
+
+spec_reference:
+  manual: "RISC-V Unprivileged ISA Manual"
+  section: "src/unpriv/cmo.adoc, Section 19.3.1"
+  excerpt: "The capacity and organization of a cache and the size of a cache block are both implementation-specific"
+
+definedBy:
+  extension:
+    anyOf:
+      - name: Zicbom
+      - name: Zicbop
+      - name: Zicboz
+
+confidence: HIGH
+rationale: |
+  Text explicitly labels as "implementation-specific". Different implementations 
+  choose different cache block sizes. This is a clear parameter.
+
+---
+
+kind: parameter
+name: CACHE_CAPACITY
+long_name: "Cache Capacity (in bytes)"
+description: |
+  Total capacity of the cache in bytes. Different implementations have 
+  different cache capacities based on design choices.
+type: integer
+unit: bytes
+minimum: 1
+maximum: 18446744073709551615
+
+spec_reference:
+  manual: "RISC-V Unprivileged ISA Manual"
+  section: "src/unpriv/cmo.adoc, Section 19.3.1"
+  excerpt: "The capacity and organization of a cache... are both implementation-specific"
+
+definedBy:
+  extension:
+    anyOf:
+      - name: Zicbom
+
+confidence: MEDIUM
+rationale: |
+  Labeled implementation-specific. Different implementations choose different 
+  capacities. However, this might be discoverable rather than a direct ISA parameter.
+  Flagged for review.
+
+---
+
+kind: parameter
+name: CACHE_ORGANIZATION
+long_name: "Cache Organization"
+description: |
+  Structure of the cache: associativity, number of sets, replacement policy.
+  Different implementations choose different cache organization strategies.
+type: object
+properties:
+  associativity:
+    type: integer
+    description: "Number of ways (fully associative to direct-mapped)"
+  sets:
+    type: integer
+    description: "Number of sets in the cache"
+  replacement_policy:
+    type: enum
+    values: [LRU, FIFO, Random, Other]
+
+spec_reference:
+  manual: "RISC-V Unprivileged ISA Manual"
+  section: "src/unpriv/cmo.adoc, Section 19.3.1"
+  excerpt: "The capacity and organization of a cache... are both implementation-specific"
+
+definedBy:
+  extension:
+    anyOf:
+      - name: Zicbom
+
+confidence: MEDIUM
+rationale: |
+  Labeled implementation-specific. Different implementations make different 
+  organization choices. Details may require additional context from CSR metadata.

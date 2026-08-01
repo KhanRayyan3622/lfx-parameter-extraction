@@ -1,0 +1,152 @@
+# Updated Parameter Extraction Based on Allen Baum's WARL/WLRL Guidance
+# Updated: July 28-31, 2026
+# Incorporates: Allen Baum feedback on parameter semantics
+
+---
+
+kind: parameter
+name: CACHE_BLOCK_SIZE
+long_name: "Cache Block Size (in bytes)"
+description: |
+  WARL field that defines the observable size of a cache block.
+  Represents both: 1) legal value set, 2) illegal-to-legal mapping
+  Different implementations choose which block sizes to support.
+  
+  WARL mapping: If implementation doesn't support requested block size,
+  the field value maps to the nearest supported size.
+
+type: enum
+unit: bytes
+legal_values: [32, 64, 128, 256, 512, 1024, 2048, 4096]
+
+warl_behavior: true
+illegal_to_legal_mapping: "Attempts to write unsupported sizes map to nearest legal value"
+
+spec_reference:
+  manual: "RISC-V Unprivileged ISA Manual"
+  section: "src/unpriv/cmo.adoc"
+  excerpt: "The capacity and organization of a cache and the size of a cache block are both implementation-specific"
+
+definedBy:
+  extension:
+    anyOf:
+      - name: Zicbom
+      - name: Zicbop
+      - name: Zicboz
+
+confidence: HIGH
+rationale: |
+  Allen Baum clarified: WARL field = parameter (legal values + illegal-to-legal mapping).
+  This is a clear parameter. Implementation chooses which sizes to support.
+  All metrics point to parameter: explicit "implementation-specific" label,
+  multicopy capability, discoverability requirement.
+
+---
+
+kind: parameter
+name: EXAMPLE_CONDITIONAL_PARAMETER
+long_name: "Example: Conditional Parameter (Field Behavior Changes by Context)"
+description: |
+  Demonstrates conditional parameter concept from Allen's guidance:
+  "sometimes a field is RW, but depending on extensions implemented...
+   it becomes RdOnly0 - that makes this bit functionally WARL"
+  
+  When a field's legal-value set or writability changes based on:
+  - Extensions implemented
+  - Other parameter values  
+  - Other WARL field values
+  
+  Then a parameter must exist describing which context determines behavior.
+
+type: conditional
+conditional_specification: |
+  Scenario 1 (Base implementation, no Extension_Y):
+    - Field is RW (read-write)
+    - Legal values: [0, 1]
+    - Can write: yes
+  
+  Scenario 2 (Extension_Y implemented):
+    - Field is RdOnly0 (read-only, fixed to 0)
+    - Legal values: [0]
+    - Can write: no
+  
+  The set of LEGAL VALUES changes based on whether Extension_Y is implemented.
+  This makes the field functionally WARL even though it's not always labeled so.
+
+conditions:
+  - when: "Extension_Y NOT implemented"
+    values_allowed: [0, 1]
+    write_behavior: "RW"
+  - when: "Extension_Y implemented"
+    values_allowed: [0]
+    write_behavior: "RdOnly0"
+
+depends_on:
+  parameter: "EXTENSION_Y_IMPLEMENTED"
+  when_true: "Field becomes RdOnly0"
+  when_false: "Field is RW"
+
+confidence: MEDIUM
+rationale: |
+  Allen noted these exist and are tricky. The field becomes functionally WARL
+  based on architectural state. Requires documenting each condition separately.
+  A parameter must exist describing which context (extension) determines behavior.
+
+---
+
+kind: parameter
+name: CACHE_CAPACITY
+long_name: "Cache Capacity (in bytes)"
+description: |
+  Total cache capacity in bytes. Different implementations choose different capacities.
+  
+  NOTE: Based on research from GitHub #2053 and Allen's guidance:
+  Need to distinguish: "implementation-chosen" vs "discoverable"
+  
+  Per Allen: WARL parameter includes legal values + illegal-to-legal mapping.
+  Capacity is labeled implementation-specific, but need CSR-context validation.
+
+type: integer
+unit: bytes
+minimum: 1
+maximum: 18446744073709551615
+
+warl_behavior: true
+implementation_chosen: true
+
+spec_reference:
+  manual: "RISC-V Unprivileged ISA Manual"
+  section: "src/unpriv/cmo.adoc"
+
+definedBy:
+  extension:
+    anyOf:
+      - name: Zicbom
+
+confidence: MEDIUM
+rationale: |
+  Labeled implementation-specific, but need Layer 2 CSR-context validation:
+  Is capacity truly a parameter (implementation chooses which to test),
+  or just discoverable (implementations have capacity, not choosing it)?
+  
+  GitHub #2053 research: "discoverability ≠ ISA parameter"
+  Allen's guidance: Focus on obvious parameters (WARL), surface edge cases for review.
+
+---
+
+NOTES ON CONDITIONAL PARAMETERS (from Allen's guidance):
+
+When a field's behavior changes based on context:
+1. Must exist a parameter describing the context
+2. Parameter could be extension, other parameter value, other WARL field value
+3. Field becomes functionally WARL (legal set changes by context)
+4. May not be explicitly labeled WARL in spec
+5. Requires naming each condition separately
+6. Document circumstances that apply to each condition
+
+Example from Allen:
+"a RW field may become RdOnly0 [under certain extensions]"
+→ Parameter needed: FIELD_RW_CONDITION or similar
+→ Describes: which extensions make field RdOnly0
+→ Essentially WARL (set of legal values changes), even if not labeled
+→ Could have no effect on operation (value is ignored), just testing verification

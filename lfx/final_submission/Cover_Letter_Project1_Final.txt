@@ -1,0 +1,77 @@
+COVER LETTER - PROJECT 1: AI-Assisted Parameter Extraction Part II
+
+---
+
+How I Found Out:
+
+I found this through the riscv-unified-db repository and research discussions. 
+Parameter extraction is harder than it looks - it's about understanding what 
+makes something a real architectural parameter vs just a label.
+
+---
+
+Why I'm Interested:
+
+Allen Baum clarified something crucial: WARL fields define both legal values AND 
+how illegal values map. That's the semantic challenge.
+
+Recent research from PR #2097 shows the actual work is distinguishing three parameter 
+types, not just fixing WARL metrics. I initially proposed solutions based on "50% recall" 
+but that was noise-dominated and was retracted. The solid work - keying on schema shapes 
+and surfacing undecidable cases for review - is more grounded.
+
+---
+
+What I Have:
+
+Technical Background:
+- GSoC 2026: AI for hardware design (Redwood EDA)
+- Completed coding challenge: 3 parameters, 0 hallucinations, 100% precision
+- MERL: Five-stage pipeline design, architecture understanding
+- Developer programs: ARM, Qualcomm, AMD, NVIDIA, Intel, Anthropic
+
+Parameter Work:
+- Multi-model validation (Claude + GPT-4)
+- Prompt engineering with iteration (3 versions to 0 hallucinations)
+- YAML schema design
+- WARL/WLRL semantics understanding
+
+RISC-V Knowledge:
+- ISA specification analysis
+- CSR structure and conventions
+- Conditional parameters and extension dependencies
+
+---
+
+Why I'll Succeed:
+
+1. Understand the real problem
+   - Not generic parameter extraction (Spring 2026 did that)
+   - Specifically WARL/WLRL complexity and the three-way classification
+   - Know why prompt tuning alone doesn't work
+
+2. Can handle nuance
+   - Conditional parameters (behavior depends on other state)
+   - Illegal-to-legal mappings
+   - CSR field ambiguity
+
+3. Research-aware
+   - Read PR #2097 and issue #2053
+   - Understand silent-failure problems
+   - Know what researchers have tried
+
+4. Proven delivery
+   - Completed coding challenge with 0 hallucinations
+   - Full methodology documented
+   - Ready for production work
+
+---
+
+After the Mentorship:
+
+I'll contribute to riscv-unified-db, help with parameter classification, stay active 
+in the RISC-V community. This is long-term, not just summer.
+
+Muhammad Rayyan Khan
+github.com/KhanRayyan3622
+khan.rayyan3622@gmail.com

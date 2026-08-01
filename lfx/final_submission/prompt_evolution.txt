@@ -1,0 +1,84 @@
+PROMPT VERSION 1 (NAIVE - FAILED):
+===
+
+Query: "Extract parameters from this RISC-V spec. Look for 'implementation-defined,' 'may,' 'optional.'"
+
+Result: Too many false positives
+- Flagged optional features as parameters (incorrect)
+- Missed context on whether implementation can choose different values
+- 3 hallucinations (items not actually in text)
+
+Lesson: Indicator phrases alone are insufficient. Need contextual understanding.
+
+---
+
+PROMPT VERSION 2 (STRUCTURED - BETTER):
+===
+
+Query: "Extract architectural parameters from this spec text. 
+
+For each parameter, identify:
+1. Name: The parameter name
+2. Type: enum, mask/value_pair, or integer_range  
+3. Description: What the parameter controls
+4. Spec section: Where in the spec this is defined
+5. Legal values: What values are allowed
+6. Confidence: HIGH/MEDIUM/LOW
+
+Critical: Only include items that are IMPLEMENTATION-SPECIFIC. 
+Exclude standard conventions that apply to ALL implementations.
+
+Example: Cache block size IS a parameter (implementations choose 32B, 64B, etc.)
+Example: CSR address format is NOT a parameter (all implementations use same format)"
+
+Result: Much better, but still 1 hallucination
+- Correctly identified that CSR format is standard convention
+- Better distinction between parameters and conventions
+- Still had edge case confusion
+
+Lesson: Explicit examples and distinction categories reduce confusion.
+
+---
+
+PROMPT VERSION 3 (CONTEXT-AWARE - SUCCESS):
+===
+
+Query: "Extract architectural parameters from this spec snippet.
+
+KEY DISTINCTION:
+- Parameter = Implementation-specific choice (different implementations choose different values)
+- Convention = Standard specification (all implementations use same approach)
+
+For each PARAMETER (not convention), provide:
+1. name: Parameter name
+2. long_name: Full description
+3. description: What it controls
+4. type: enum, mask.value_pair, or integer_range
+5. legal_values: What values implementations can choose
+6. spec_section: Where mentioned
+7. confidence: HIGH/MEDIUM/LOW based on textual evidence
+
+REALITY CHECK: For each candidate, ask:
+- Is this explicitly labeled implementation-specific/implementation-defined?
+- Would two different RISC-V cores choose DIFFERENT values for this?
+- If implementation can't choose, it's NOT a parameter.
+
+Example cache block size: Implementations choose 32, 64, 128, 256... → PARAMETER
+Example CSR address format: All implementations use same 12-bit format → CONVENTION, NOT PARAMETER"
+
+Result: 0 hallucinations, 3 correct parameters
+- Correctly extracted cache parameters (implementation-specific)
+- Correctly rejected CSR format (standard convention)
+- 100% precision, 100% specificity
+
+Lesson: Explicit context and examples significantly improve accuracy
+
+---
+
+KEY INSIGHTS FROM PROMPT EVOLUTION:
+
+1. Indicator phrases ("implementation-defined") help but need context
+2. Explicit examples of what IS and ISN'T a parameter are critical
+3. Reality check question ("would different cores choose different values?") prevents hallucinations
+4. Distinguishing parameter vs convention categories is essential
+5. Multi-iteration refinement: v1 → v2 → v3 shows learning curve

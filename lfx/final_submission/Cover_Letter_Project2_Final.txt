@@ -1,0 +1,75 @@
+COVER LETTER - PROJECT 2: Tightly-Coupled Data-Flow Integrity
+
+---
+
+How I Found Out:
+
+Found this through the LFX portal. DFI at the hardware level is what I want to work on - 
+security integrated into the processor pipeline, not bolted on.
+
+---
+
+Why I Care:
+
+Memory corruption is the #1 attack vector. Software defenses help but cost performance. 
+Tightly-coupled DFI offers stronger guarantees with better performance.
+
+Tight coupling is elegant - instead of complex coprocessors, integrate the mechanism 
+directly into the pipeline. That's real architecture.
+
+---
+
+What I Have:
+
+Hardware:
+- MERL: Five-stage pipeline design and implementation in Chisel
+- Completed DFI challenge: 4-entry CAM module + comprehensive testbench
+- Comfortable reading and modifying RTL
+- Pipeline design and integration experience
+
+Security & Verification:
+- Interested in hardware security mechanisms (CFI, DFI, SCS)
+- Formal verification basics (SymbiYosys, EQY)
+- Understanding correctness from hardware level
+- Threat modeling for architecture
+
+ISA & Compiler:
+- GSoC: LLM-assisted hardware design
+- RISC-V ISA study
+- Basic LLVM understanding
+- Hardware-compiler co-design thinking
+
+---
+
+Why I'll Succeed:
+
+1. Ready for the scope
+   - Two-phase approach (hardware then compiler) makes sense
+   - Have SystemVerilog and RTL experience
+   - Can ship working code with testbenches
+
+2. Security mindset
+   - Think about correctness and attack surfaces
+   - Understand why tight coupling helps security
+   - Design decisions centered on guarantees
+
+3. Full-stack thinking
+   - Not just hardware or just compiler
+   - Understand interdependencies
+   - Can reason about trade-offs
+
+4. Proven work
+   - Completed hardware challenge
+   - Documented design decisions
+   - Ready for production RTL
+
+---
+
+After the Mentorship:
+
+I'll maintain and improve DFI in Sargantana, continue hardware security work, 
+stay involved in RISC-V security discussions. Long-term commitment.
+
+Muhammad Rayyan Khan
+github.com/KhanRayyan3622
+khan.rayyan3622@gmail.com

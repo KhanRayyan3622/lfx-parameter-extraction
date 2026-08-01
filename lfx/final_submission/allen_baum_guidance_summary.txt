@@ -1,0 +1,108 @@
+ALLEN BAUM'S GUIDANCE ON WARL/WLRL PARAMETERS & LAYER 2 VALIDATION
+Received: July 28 - July 31, 2026 via Slack & GitHub
+
+---
+
+KEY POINTS ON PARAMETER IDENTIFICATION:
+
+1. WARL field = parameter (both legal values + illegal-to-legal mapping)
+   "Anything labelled WARL essentially defines a parameter"
+   Parameter includes:
+   - The legal values (what values the field can hold)
+   - The mapping from illegal to legal (how illegal writes are handled)
+
+2. Not all WARL fields are explicitly labeled
+   "sometimes a field is RW, but depending on extensions... it becomes RdOnly0"
+   Need to recognize WARL behavior even without explicit WARL label
+   Example: RW field becomes RdOnly0 (legal set changes based on context)
+
+3. Conditional parameters exist and require parameters to describe them
+   When a field's legal-value set changes based on architectural state:
+   - Extension implemented vs not implemented
+   - Value of other parameters
+   - Other WARL field values
+   Must name a parameter specifying which context determines the legal set
+   Example: FIELD_X_RW_CONTEXT (parameter specifying when field is RW vs RdOnly0)
+
+4. Same value might have different effects
+   "either value of the parameter will yield identical results"
+   "the only observable difference is whether that CSR can be set to one or not"
+   Some parameters affect CSR settability, not operation
+   This is still a parameter (need to verify it stays at the chosen value)
+
+5. YAML schema: "just make one up"
+   "just make one up, because converting it to whatever is finally decided on
+    will be relatively easy. That is the priority order being taken by the
+    parameter SIG."
+   Priority: 1) Get parameter list correct, 2) Convert formats later
+   Different people/groups have different formats right now
+   Focus on identifying parameters correctly, not perfecting schema
+
+6. Focus is primarily to FIND parameters, not perfect classification
+   "if we have to classify something by hand for 18 undecidable cases, I think 
+    that level of effort is completely in the noise; it will take more effort 
+    to get an AI agent to figure it out than to just do it by hand."
+   WARL are obvious cases - focus extraction there
+   18 edge cases: hand classification is completely reasonable
+   WARL schema is primarily to restrict tested values (for large field lists)
+
+---
+
+KEY POINTS ON LAYER 2 VALIDATION:
+
+1. Layer 2 CSR-context validation is sound approach
+   "Not all WARL is explicitly labeled - some become WARL under certain contexts"
+   Validating against real CSR metadata is better than trusting textual labels
+
+2. For the 18 undecidable WARL cases: surface for human review
+   Allen: "if we have to classify something by hand for 18 undecidable cases, 
+           I think that level of effort is completely in the noise"
+   Hand classification is fine - worth the effort
+   AI effort to figure these out would exceed manual effort
+
+3. Focus on obvious cases
+   WARL fields are obvious cases for parameters
+   Not so many WARL fields (larger than 1 bit) that we can't fill details by hand
+   Focus extraction effort on high-confidence cases
+
+4. Conditional parameters need explicit parameter to describe context
+   When field behavior changes: MUST have parameter specifying condition
+   Parameter naming convention: describe the context condition
+   Example: if field is RW in some extensions and RdOnly0 in others,
+            need parameter describing which extension context applies
+
+---
+
+IMPLICATION FOR LAYER 2 APPROACH:
+
+1. Key on schema shapes (type: array + items.enum)
+   Nine parameters already use this pattern
+   This is ground truth for legal-value parameters
+
+2. For undecidable cases (18 items)
+   Surface for expert review - not worth automating
+   Hand classification is reasonable effort
+   Build reference set of these edge cases
+
+3. Don't stress automation on edge cases
+   WARL fields are obvious - focus there
+   Edge cases: flag for manual review
+   Effort split: high-confidence automated + edge-case manual
+
+4. Validate against decidable subset
+   Measure against decidable cases with schema patterns
+   Report variance properly (repeated runs)
+   Build on top of 9 existing type: array parameters
+
+---
+
+SUMMARY FOR FALL 2026 WORK:
+
+- Find obvious parameters (WARL fields, schema-pattern matches)
+- Surface edge cases for expert review (not worth full automation)
+- Don't stress YAML format (will be converted later anyway)
+- Focus on parameter identification, not perfect classification
+- Hand work on 18 cases is fine (better than complex automation)
+- Build Layer 2 that validates against CSR metadata
+- Key on schema shapes, not WARL labels
+- Report results with proper variance measurement
