@@ -1,45 +1,96 @@
-GITHUB ISSUE #2251: Community Engagement & Technical Feedback
+GITHUB ISSUE #2251: Active Community Engagement & Technical Refinement
 
 Issue: "LFX Fall 2026: WARL Validation via CSR Context (Addressing Issue #2053)"
 Link: https://github.com/riscv/riscv-unified-db/issues/2251
 
-Status: Active technical discussion with RAJVEER42, titoatwork, and Allen Baum
+Status: Ongoing technical discussion with RAJVEER42, titoatwork, and Allen Baum (mentor)
 
-Key Exchange:
-1. Posted initial proposal based on PR #2097 research
-2. RAJVEER42 identified retracted numbers (50% recall, etc.)
-3. Updated issue with corrected framework
-4. titoatwork clarified technical details (NORM_CSR_WARL source, populations)
-5. RAJVEER42 validated schema-shape keying approach
-6. Allen Baum joined and clarified conditional parameters
-7. Ongoing discussion about three-way classification
+---
 
-Allen Baum's Key Insights (from #2251 discussion):
-- Focus is primarily to find parameters, WARL are obvious cases
-- 18 undecidable cases: hand classification is fine, not worth AI effort
-- Conditional parameters: sometimes WARL field isn't explicitly labeled but becomes 
-  one under certain contexts (e.g., RW field becomes RdOnly0)
-- Not all conditional cases should be classified as WARL - may just mean the set of 
-  legal values changes
-- Parameter must exist to specify which context determines the legal-value set
+KEY DEVELOPMENTS:
 
-Technical Validation:
-- RAJVEER42: "Validating a candidate against real CSR metadata... is a good instinct"
-- titoatwork: "The mechanism you are proposing already has a worked form in this repository"
-- RAJVEER42 (final): "keying on schema shape rather than the WARL label: the repo has 
-  already started migrating in that direction"
-- Allen Baum: Focus on finding parameters. WARL schema restricts tested values. Hand 
-  classification for edge cases is fine.
+Round 1: Initial proposal + RAJVEER42 feedback on retracted numbers
+- Identified: "50% recall" claim was noise-dominated (7-item variance on 24 total)
+- Corrected: Keyed on schema shapes instead of WARL labels
+- Result: Focus narrowed to 4 decidable cases, 18 undecidable for review
 
-What This Shows:
-✓ Active engagement with research community and mentors
-✓ Ability to receive and incorporate technical feedback
-✓ Understanding of nuanced technical problems
-✓ Real discussion with top researchers (RAJVEER42, titoatwork, Allen Baum)
-✓ Mechanism validated by experts
-✓ Practical guidance from mentors on scope and effort
+Round 2: titoatwork clarification on terminology and measurements
+- Clarified: NORM_CSR_WARL is from unmerged PR #1766, not UDB
+- Measured: 26 WARL entries in Spring 2026 gold set, 4 confirmed decidable
+- Validated: 9 parameters already use type: array + items.enum pattern
+- Found: 4 parameters rewritten into decidable shape (STVEC_MODES migration)
 
-For LFX Mentors:
-This issue demonstrates technical depth, community engagement, mentorship capability, 
-and willingness to learn from expert feedback. The discussion is ongoing, productive, 
-and shows the candidate can handle real technical work.
+Round 3: Allen Baum (mentor) clarifies REAL COMPLEXITY
+- Confirmed: If something is WARL, it IS a parameter (101 field definitions)
+- Discovered: 98 reference parameters via IDL (type(), sw_write(), reset_value())
+- **Critical insight:** Legal value sets can depend on MULTIPLE OTHER PARAMETERS
+- Example: hgatp.MODE legal set from 5 different parameters (GSTAGE_MODE_BARE + 4 SV*X4_TRANSLATION)
+- Example: jvt.MODE legal set from JVT_READ_ONLY parameter
+- Problem: One items.enum cannot express sets assembled from multiple parameters
+- Scope adjustment: "Decidable" cases must be redefined - flat cases only
+
+Round 4: titoatwork measurements on what's actually decidable
+- 9 existing parameters use closed schema pattern (decidable)
+- CSR fields consuming them NOT labeled WARL in descriptions
+- Two clean patterns: $array_size (for RO/RW) and $array_includes? (for value validation)
+- Some cases use only $array_size, no matching $array_includes?
+- hgatp.MODE, jvt.MODE cases fall outside decidable bucket (multi-param sources)
+- Recommendation: Only treat as decidable where IDL already uses closed schema
+
+---
+
+TECHNICAL DISCOVERIES:
+
+What Survives:
+✓ Schema-shape keying is sound for flat cases (9 parameters + descendants)
+✓ Layer 2 CSR-context validation is valuable mechanism
+✓ Three-way classification (absent extension / cardinality condition / predicate) is right framework
+✓ Hand classification for edge cases (18 items) is completely reasonable
+
+What Changed:
+✗ Not all WARL fields say "WARL" in descriptions - need to look at IDL
+✗ Single items.enum cannot handle multi-parameter dependencies
+✗ "Decidable" cases are narrower than initially thought (only flat cases)
+✗ WARL field legal sets can depend on 3-5 OTHER PARAMETERS
+✗ Schema shape test finds flat cases but misses conditional ones
+
+---
+
+FOR FALL 2026 WORK:
+
+Revised Focus:
+1. Identify TRULY decidable cases (flat, single-parameter dependencies)
+   - Use: $array_size and $array_includes? patterns in IDL
+   - Found in: stvec.MODE, vstvec.MODE, mtvec.MODE, mstatus.FS, mstatus.VS, *XLEN fields
+   - Count: 9 existing + descendants from #2090 migration
+
+2. Surface conditional cases (multi-parameter dependencies)
+   - hgatp.MODE: 5-parameter source
+   - jvt.MODE: 1-parameter source but mode-linked
+   - These need expert review or more sophisticated handling
+
+3. Build Layer 2 that distinguishes:
+   - Decidable flat cases (implement full validation)
+   - Conditional cases (surface for review + flag dependencies)
+   - Non-parameter cases (correctly reject)
+
+4. Report findings correctly:
+   - Decidable subset with proper metrics
+   - Undecidable subset with dependency analysis
+   - Variance across runs on decidable subset
+
+---
+
+MENTOR ENGAGEMENT:
+
+Allen Baum joined directly to clarify:
+- Parameter definitions (WARL = parameter)
+- Complexity of multi-parameter dependencies
+- Scope of what can be automated vs what requires review
+- IDL layer (sw_write, type(), reset_value()) matters more than prose
+
+This shows:
+✓ Active mentorship engagement
+✓ Real technical guidance on actual problems
+✓ Understanding that automation has limits
+✓ Clear scope boundaries for Fall 2026 work
