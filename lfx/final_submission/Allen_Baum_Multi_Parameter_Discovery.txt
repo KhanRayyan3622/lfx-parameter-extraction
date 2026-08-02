@@ -1,0 +1,138 @@
+ALLEN BAUM'S CRITICAL DISCOVERY: MULTI-PARAMETER DEPENDENCIES
+Documented: August 1, 2026 (from GitHub issue #2251)
+
+---
+
+THE PROBLEM WITH SCHEMA-SHAPE-ONLY APPROACH:
+
+Allen Baum discovered the real complexity:
+"The set of legal values of a WARL field can change depending on other 
+architectural state or parameters... Worth scoping 'decidable' tighter than 
+it first looked."
+
+Simple schema-shape test (type: array + items.enum) finds FLAT cases.
+But WARL fields often have MULTI-PARAMETER DEPENDENCIES.
+
+---
+
+HARD EXAMPLES FROM CURRENT UDB:
+
+Example 1: hgatp.MODE (5-Parameter Source)
+Legal values depend on 5 different boolean parameters:
+- GSTAGE_MODE_BARE
+- SV39X4_TRANSLATION
+- SV48X4_TRANSLATION
+- SV57X4_TRANSLATION
+- SV64X4_TRANSLATION
+
+For each combination, different mode values allowed.
+One items.enum cannot express this relationship.
+
+Example 2: jvt.MODE (Parameter-Linked Writability)
+Legal values depend on JVT_READ_ONLY:
+- When JVT_READ_ONLY = true: RdOnly0 (only 0 allowed)
+- When JVT_READ_ONLY = false: RW (but only 0 valid anyway)
+
+Not a cardinality difference - a writability change.
+Schema shape test finds no items.enum - misses it.
+
+---
+
+WHAT'S ACTUALLY DECIDABLE:
+
+titoatwork identified 9 parameters + descendants that ARE decidable:
+1. MSTATUS_FS_LEGAL_VALUES
+2. MSTATUS_VS_LEGAL_VALUES
+3. MTVEC_MODES
+4. STVEC_MODES
+5. VSTVEC_MODES
+6. SXLEN
+7. UXLEN
+8. VSXLEN
+9. VUXLEN
+
+Plus 4 descendants from PR #2090 rewrite:
+- STVEC_MODES (replaced STVEC_MODE_DIRECT, STVEC_MODE_VECTORED)
+- VSTVEC_MODES (replaced VSTVEC_MODE_DIRECT, VSTVEC_MODE_VECTORED)
+
+These 9+ cases share pattern:
+- type: array with items.enum
+- Direct IDL reference: $array_includes? or $array_size
+- Single parameter source
+- Flat, automatable
+
+---
+
+CHARACTERISTICS OF DECIDABLE CASES:
+
+From titoatwork measurements:
+1. Do NOT explicitly say "WARL" in field descriptions
+2. Must look at IDL (sw_write, type(), reset_value())
+3. Two clean patterns:
+   - $array_size(PARAM): Determines RO/RW cardinality
+   - $array_includes?(PARAM, value): Validates value is legal
+4. Both patterns reference same array+items.enum parameter
+5. No multi-parameter orchestration needed
+
+Example (stvec.MODE):
+- type(): $array_size(STVEC_MODES) determines if RO/RW
+- sw_write(): $array_includes?(STVEC_MODES, value) validates legal
+
+This is decidable and automatable.
+
+---
+
+CHARACTERISTICS OF UNDECIDABLE CASES:
+
+1. Multi-parameter sources (2+ parameters feed into legal set)
+   Example: hgatp.MODE from 5 boolean parameters
+   
+2. Parameter-linked but non-enumeration
+   Example: jvt.MODE - writability from JVT_READ_ONLY
+   
+3. Complex conditional logic in sw_write()
+   Example: Multiple if-else branches, UNDEFINED_LEGAL_DETERMINISTIC
+   
+4. Cannot be expressed as single items.enum
+   Example: Legal set changes based on runtime parameter values
+
+These require expert review, not automation.
+
+---
+
+FALL 2026 REVISED SCOPE:
+
+Layer 2 should:
+1. Identify decidable cases (9+ parameters with flat patterns)
+   - Parse IDL for $array_includes? and $array_size patterns
+   - Verify single-parameter source
+   - Build validation logic
+
+2. Flag conditional cases
+   - Detect multi-parameter dependencies
+   - List all dependency sources
+   - Surface for expert review
+
+3. Don't try to automate multi-parameter orchestration
+   - Allen: "It will take more effort to get an AI agent to figure it out 
+            than to just do it by hand"
+   - Effort is "completely in the noise" (maybe 5-10 cases)
+   - Manual review is faster
+
+4. Report findings correctly:
+   - Decidable subset: full metrics + variance
+   - Conditional subset: dependency analysis + flagged for review
+   - No claims on precision/recall for conditional cases
+
+---
+
+KEY INSIGHT FROM RESEARCH:
+
+Allen Baum clarified what the actual problem is:
+- Not about extracting WARL fields (fairly obvious)
+- Real work: understanding multi-parameter dependencies
+- Automation works for: flat cases (9+ parameters)
+- Automation fails for: conditional cases (need expert)
+- Right approach: hybrid (automated + review)
+
+This is much more realistic and defensible for Fall 2026.
