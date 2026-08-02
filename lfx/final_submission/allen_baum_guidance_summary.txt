@@ -106,3 +106,110 @@ SUMMARY FOR FALL 2026 WORK:
 - Build Layer 2 that validates against CSR metadata
 - Key on schema shapes, not WARL labels
 - Report results with proper variance measurement
+
+---
+
+ALLEN BAUM'S LATEST INSIGHTS (GitHub Issue #2251 - Final Updates)
+Received: Latest comments on #2251
+
+CRITICAL DISCOVERY: MULTI-PARAMETER DEPENDENCIES
+
+1. If something is WARL, it IS a parameter
+   "I believe if something is WARL, it is a parameter"
+   Evidence: 101 field definitions under spec/std/isa/csr/
+   98 of these reference a parameter via type(), sw_write(), or reset_value()
+   Only 3 exceptions: custom-use WARL bits (mctrctl.CUSTOM, etc.)
+
+2. Not all WARL bits explicitly say "WARL" in field descriptions
+   Must look at IDL (the constraint layer), not just prose
+   Parameter references live in: type(), sw_write(), reset_value()
+   Not in field description text
+
+3. REAL COMPLEXITY: Legal value sets depend on OTHER PARAMETERS
+   "The set of legal values of a WARL field can change depending on 
+    other architectural state or parameters"
+   
+   Example 1: hgatp.MODE
+   - Legal set comes from: GSTAGE_MODE_BARE + 4 SV*X4_TRANSLATION parameters
+   - That's 5 sources feeding into one field's legal set
+   - One items.enum cannot express this
+   
+   Example 2: jvt.MODE
+   - Legal set depends on: JVT_READ_ONLY parameter
+   - Also mode-linked (single allowed value)
+   - Not a multi-value enumeration
+   
+   Example 3: Some *XLEN fields
+   - Use $array_size for RO/RW cardinality
+   - But no matching $array_includes? on value validation
+   - Partial schema pattern
+
+4. Schema shape test finds FLAT cases but misses CONDITIONAL ones
+   "One items.enum cannot express a set assembled from five parameters, 
+    so the shape test finds the flat cases and misses the conditional ones"
+   
+   Schema shape works for: stvec.MODE, vstvec.MODE, mtvec.MODE, mstatus.FS, mstatus.VS
+   Schema shape fails for: hgatp.MODE (5-param source), jvt.MODE (param-linked)
+
+5. "Decidable" cases must be scoped tighter than initially thought
+   "Worth scoping 'decidable' tighter than it first looked"
+   
+   Decidable = cases where IDL already uses closed schema-shaped parameter
+   - Direct items.enum consumption ($array_includes? on array+items.enum)
+   - Direct cardinality test ($array_size on that shape)
+   
+   Not decidable = multi-parameter dependencies
+   - hgatp.MODE (5 sources)
+   - jvt.MODE (single mode parameter)
+   - Any field whose legal set depends on 2+ parameters
+
+---
+
+TITOATWORK'S MEASUREMENTS (Real Data from Current Main)
+
+Clean closed-set cases (9 parameters) - characteristics:
+1. Do NOT explicitly say "WARL" in field descriptions
+2. CSR fields consuming them also NOT labeled WARL
+3. Patterns:
+   - $array_size(PARAM_NAME): Determines RO vs RW
+   - $array_includes?(PARAM_NAME, value): Validates written values
+
+Working flat cases (decidable):
+- stvec.MODE: type() uses $array_size(STVEC_MODES), sw_write uses $array_includes?(STVEC_MODES, value)
+- vstvec.MODE: Same pattern with VSTVEC_MODES
+- mtvec.MODE: Uses $array_size(MTVEC_MODES) + $array_includes?(MTVEC_MODES, value) + additional gates
+- mstatus.FS, mstatus.VS: Use $array_includes? against legal value parameter on write
+- *XLEN fields: Some only use $array_size (no matching $array_includes?)
+
+Conditional cases (not decidable from schema alone):
+- hgatp.MODE: Uses GSTAGE_MODE_BARE + 4 SV*X4_TRANSLATION parameters (5 sources, all boolean)
+- jvt.MODE: Uses JVT_READ_ONLY parameter for RO/RW + write gate, single allowed value
+
+Recommendation: Only treat as decidable where field IDL uses closed schema-shaped parameter
+- This means: Look for direct $array_includes? or $array_size reference to array+items.enum parameter
+- Cases like hgatp.MODE stay in undecidable bucket (requires multi-parameter orchestration)
+
+---
+
+IMPLICATIONS FOR FALL 2026 LAYER 2:
+
+Revised scope:
+1. Decidable cases (implement full validation)
+   - 9 existing parameters + descendants from #2090 rewrite
+   - Flat schema patterns: array+items.enum with direct IDL reference
+   - Can be automated with reasonable confidence
+
+2. Conditional cases (surface for expert review)
+   - Multi-parameter dependencies (2+ sources)
+   - Parameter-linked but non-enumeration cases
+   - Flag the dependencies, let expert decide
+
+3. Don't try to automate multi-parameter dependencies
+   - Scope is narrow (maybe 5-10 cases)
+   - Manual review is faster than engineering complex validation
+   - Allen: "That level of effort is completely in the noise"
+
+4. Report correctly:
+   - Decidable subset: metrics + variance
+   - Conditional subset: dependencies + flagged for review
+   - Undecidable subset: no claims on precision/recall
