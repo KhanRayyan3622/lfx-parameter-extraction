@@ -1,6 +1,0 @@
-{
-  "task": "Reset and Clock",
-  "fev.sh": "none",
-  "fev_cnt": 0,
-  "llm": "Reset and Clock: clock is already clk (no bridge needed). Reset rst is positively-asserted and synchronous - no prepared.sv changes required. Will use rst directly in TLV conversion."
-}

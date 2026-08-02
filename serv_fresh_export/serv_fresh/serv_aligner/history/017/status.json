@@ -1,6 +1,0 @@
-{
-  "task": "Eliminate Multiple Assignments",
-  "fev.sh": "none",
-  "fev_cnt": 0,
-  "llm": "Eliminate Multiple Assignments: no multiple assignments to same signal. lower_hw and ctrl_misal each have single ternary assignment. No changes needed."
-}

@@ -1,9 +1,0 @@
-## Task: No Tabs
-
-Summary: Replace tabs with spaces.
-
-Run `./scripts/no_tabs.py` to replace tabs with spaces in `wip.tlv`.
-
-Run `./scripts/fev.sh` for good measure.
-
-

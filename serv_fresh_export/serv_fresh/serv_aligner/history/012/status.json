@@ -1,6 +1,0 @@
-{
-  "task": "Eliminate Always Comb",
-  "fev.sh": "none",
-  "fev_cnt": 0,
-  "llm": "Eliminate Always Comb: no always_comb or combinational always blocks. Only two posedge clk always blocks remain (already converted to ternary). No changes needed."
-}
