@@ -1,0 +1,58 @@
+# RISC-V Parameter Extraction - Snippet 1 (Cache)
+# Extracted: July 28, 2026
+# LLM: Claude
+
+---
+kind: parameter
+name: CACHE_BLOCK_SIZE
+long_name: "Cache Block Size"
+description: |
+  The observable size of a cache block, measured in bytes.
+  A cache block represents a contiguous, naturally aligned power-of-two range.
+  This is implementation-specific and discoverable by software.
+
+type: integer
+unit: bytes
+
+implementation_specific: true
+discovery_required: true
+
+spec_reference:
+  manual: "RISC-V Privileged ISA Manual"
+  section: "19.3.1"
+  phrase: "The size of a cache block are both implementation-specific"
+
+confidence: HIGH
+notes: "Explicitly marked as implementation-specific in specification"
+
+---
+kind: parameter
+name: CACHE_CAPACITY
+long_name: "Cache Capacity"
+description: |
+  The total data capacity of a cache in bytes.
+  Cache capacity is implementation-specific.
+
+type: integer
+unit: bytes
+
+implementation_specific: true
+discovery_required: true
+
+confidence: MEDIUM
+notes: "Mentioned as implementation-specific, less explicit than block size"
+
+---
+kind: parameter
+name: CACHE_ORGANIZATION
+long_name: "Cache Organization"
+description: |
+  The organizational details of a cache, such as associativity and number of sets.
+
+type: object
+
+implementation_specific: true
+
+confidence: MEDIUM
+notes: "Inferred from context about cache organization"
+

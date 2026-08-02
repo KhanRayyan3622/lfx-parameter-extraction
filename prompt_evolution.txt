@@ -1,0 +1,30 @@
+PROMPT VERSION 1 (FAILED):
+"Extract parameters from this RISC-V spec. Look for 'implementation-defined,' 'may,' 'optional.'"
+
+Result: Too many false positives
+Lesson: Indicator phrases alone aren't enough
+
+---
+
+PROMPT VERSION 2 (BETTER):
+"Extract PARAMETERS (not descriptions). A parameter differs between implementations.
+Include: name, description, type, constraints, confidence.
+Avoid: Generic descriptions, standard conventions."
+
+Result: Better but still confused some conventions
+Lesson: Need explicit examples of what NOT to extract
+
+---
+
+PROMPT VERSION 3 (FINAL - GOOD):
+"PARAMETER: Something implementation-specific (e.g., cache size)
+CONVENTION: Something fixed by standard (e.g., 12-bit CSR space)
+
+Look for 'implementation-specific,' 'may,' 'configuration'
+Avoid: 'By convention,' 'The ISA sets aside,' 'Bits encode'
+
+Include: name, description, type, constraints, spec section, confidence"
+
+Result: 0 hallucinations, correct distinction
+Lesson: Explicit context and examples significantly improve accuracy
+

@@ -1,0 +1,22 @@
+# RISC-V Parameter Extraction - Snippet 2 (CSR Addressing)
+# Analysis: July 28, 2026
+
+analysis:
+  true_parameters_found: 0
+  reason: "This snippet describes STANDARD CSR ADDRESS CONVENTIONS, not implementation-specific parameters"
+  
+  why_zero_parameters: |
+    The 12-bit CSR encoding space, 2-bit R/W encoding, and 2-bit privilege encoding 
+    are FIXED across all RISC-V implementations. These are standards, not configurable parameters.
+    
+    Unlike Snippet 1 (cache sizes vary by implementation), these conventions are the same everywhere.
+  
+  key_lesson: |
+    Important to distinguish:
+    - PARAMETER: Something that varies by implementation (e.g., cache size)
+    - CONVENTION: Something fixed by standard (e.g., CSR address format)
+  
+  items_found_but_not_parameters:
+    - CSR_ADDRESS_SPACE (12-bit, fixed standard)
+    - CSR_READ_WRITE_ENCODING (bits 11:10, fixed standard)
+    - CSR_PRIVILEGE_ENCODING (bits 9:8, fixed standard)
