@@ -1,27 +1,26 @@
-# Updated Parameter Extraction Based on Allen Baum & titoatwork Research
-# Updated: July 31 - August 1, 2026
-# Source: GitHub issue #2251, Allen Baum feedback, titoatwork measurements
+# Updated Parameter Extraction Based on Allen Baum's WARL/WLRL Guidance
+# Updated: July 28-31, 2026
+# Incorporates: Allen Baum feedback on parameter semantics
 
 ---
 
-# DECIDABLE CASE #1: Flat Schema Pattern
 kind: parameter
 name: CACHE_BLOCK_SIZE
 long_name: "Cache Block Size (in bytes)"
 description: |
-  WARL field that defines observable cache block size.
-  Represents both legal values and illegal-to-legal mapping.
-  Flat case: single parameter, direct schema pattern (type: array + items.enum).
+  WARL field that defines the observable size of a cache block.
+  Represents both: 1) legal value set, 2) illegal-to-legal mapping
+  Different implementations choose which block sizes to support.
+  
+  WARL mapping: If implementation doesn't support requested block size,
+  the field value maps to the nearest supported size.
 
 type: enum
 unit: bytes
 legal_values: [32, 64, 128, 256, 512, 1024, 2048, 4096]
 
 warl_behavior: true
-idl_pattern: |
-  Pattern recognized in current UDB:
-  - type(): $array_size(CACHE_BLOCK_SIZES) determines RO/RW
-  - sw_write(): $array_includes?(CACHE_BLOCK_SIZES, value) validates legal values
+illegal_to_legal_mapping: "Attempts to write unsupported sizes map to nearest legal value"
 
 spec_reference:
   manual: "RISC-V Unprivileged ISA Manual"
@@ -36,169 +35,118 @@ definedBy:
       - name: Zicboz
 
 confidence: HIGH
-classification: DECIDABLE_FLAT
 rationale: |
-  Allen Baum: "If something is WARL, it is a parameter"
-  This is a flat case: legal values defined by single parameter (CACHE_BLOCK_SIZES)
-  IDL already uses $array_includes? pattern (decidable)
-  Belongs in 9-case decidable subset (or descendants from migration #2090)
+  Allen Baum clarified: WARL field = parameter (legal values + illegal-to-legal mapping).
+  This is a clear parameter. Implementation chooses which sizes to support.
+  All metrics point to parameter: explicit "implementation-specific" label,
+  multicopy capability, discoverability requirement.
 
 ---
 
-# DECIDABLE CASE #2: Cardinality-Based Writability
 kind: parameter
-name: MSTATUS_FS_LEGAL_VALUES
-long_name: "MSTATUS.FS Legal Values"
+name: EXAMPLE_CONDITIONAL_PARAMETER
+long_name: "Example: Conditional Parameter (Field Behavior Changes by Context)"
 description: |
-  Legal value set for MSTATUS.FS field (floating-point state).
-  FLAT case: uses $array_size for RO/RW determination.
+  Demonstrates conditional parameter concept from Allen's guidance:
+  "sometimes a field is RW, but depending on extensions implemented...
+   it becomes RdOnly0 - that makes this bit functionally WARL"
   
-  From titoatwork measurements:
-  - FS field does NOT say WARL in description
-  - But schema uses $array_includes?(MSTATUS_FS_LEGAL_VALUES) on write
-  - This is decidable flat pattern
+  When a field's legal-value set or writability changes based on:
+  - Extensions implemented
+  - Other parameter values  
+  - Other WARL field values
+  
+  Then a parameter must exist describing which context determines behavior.
 
-type: array
-items:
-  type: integer
-  enum: [0, 1, 2, 3]
+type: conditional
+conditional_specification: |
+  Scenario 1 (Base implementation, no Extension_Y):
+    - Field is RW (read-write)
+    - Legal values: [0, 1]
+    - Can write: yes
+  
+  Scenario 2 (Extension_Y implemented):
+    - Field is RdOnly0 (read-only, fixed to 0)
+    - Legal values: [0]
+    - Can write: no
+  
+  The set of LEGAL VALUES changes based on whether Extension_Y is implemented.
+  This makes the field functionally WARL even though it's not always labeled so.
+
+conditions:
+  - when: "Extension_Y NOT implemented"
+    values_allowed: [0, 1]
+    write_behavior: "RW"
+  - when: "Extension_Y implemented"
+    values_allowed: [0]
+    write_behavior: "RdOnly0"
+
+depends_on:
+  parameter: "EXTENSION_Y_IMPLEMENTED"
+  when_true: "Field becomes RdOnly0"
+  when_false: "Field is RW"
+
+confidence: MEDIUM
+rationale: |
+  Allen noted these exist and are tricky. The field becomes functionally WARL
+  based on architectural state. Requires documenting each condition separately.
+  A parameter must exist describing which context (extension) determines behavior.
+
+---
+
+kind: parameter
+name: CACHE_CAPACITY
+long_name: "Cache Capacity (in bytes)"
+description: |
+  Total cache capacity in bytes. Different implementations choose different capacities.
+  
+  NOTE: Based on research from GitHub #2053 and Allen's guidance:
+  Need to distinguish: "implementation-chosen" vs "discoverable"
+  
+  Per Allen: WARL parameter includes legal values + illegal-to-legal mapping.
+  Capacity is labeled implementation-specific, but need CSR-context validation.
+
+type: integer
+unit: bytes
+minimum: 1
+maximum: 18446744073709551615
 
 warl_behavior: true
-idl_pattern: |
-  type(): $array_size(MSTATUS_FS_LEGAL_VALUES) determines RO/RW
-  sw_write(): $array_includes?(MSTATUS_FS_LEGAL_VALUES, value) validates
-  reset_value(): Determined by implementation choice
+implementation_chosen: true
 
-confidence: HIGH
-classification: DECIDABLE_FLAT
-rationale: |
-  One of 9 parameters identified by titoatwork (exact list provided)
-  Flat schema: array+items.enum with direct IDL reference
-  Legal set depends on single parameter source (itself)
-  No multi-parameter dependencies
-  Belongs in decidable subset
+spec_reference:
+  manual: "RISC-V Unprivileged ISA Manual"
+  section: "src/unpriv/cmo.adoc"
 
----
-
-# CONDITIONAL CASE: Multi-Parameter Dependency (UNDECIDABLE)
-kind: parameter
-name: HGATP_MODE_CONDITIONAL
-long_name: "HGATP.MODE - Conditional Legal Set (Multi-Parameter Source)"
-description: |
-  CONDITIONAL CASE showing complexity that cannot be automated with simple schema shape test.
-  
-  Legal value set for HGATP.MODE depends on 5 DIFFERENT SOURCES:
-  - GSTAGE_MODE_BARE (boolean parameter)
-  - SV39X4_TRANSLATION (boolean parameter)
-  - SV48X4_TRANSLATION (boolean parameter)
-  - SV57X4_TRANSLATION (boolean parameter)
-  - SV64X4_TRANSLATION (boolean parameter)
-  
-  For each combination of these 5 booleans, different legal values allowed.
-  IDL: sw_write returns UNDEFINED_LEGAL_DETERMINISTIC unless matching parameter set
-
-type: conditional_multi_parameter
-condition_sources:
-  - parameter: GSTAGE_MODE_BARE
-    role: "When set, enables Bare mode"
-  - parameter: SV39X4_TRANSLATION
-    role: "When set, enables SV39x4 translation mode"
-  - parameter: SV48X4_TRANSLATION
-    role: "When set, enables SV48x4 translation mode"
-  - parameter: SV57X4_TRANSLATION
-    role: "When set, enables SV57x4 translation mode"
-  - parameter: SV64X4_TRANSLATION
-    role: "When set, enables SV64x4 translation mode"
-
-idl_pattern: |
-  sw_write(write_value):
-    if GSTAGE_MODE_BARE:
-      return 0  # Bare mode allowed
-    if SV39X4_TRANSLATION:
-      return 8  # SV39x4 encoding allowed
-    if SV48X4_TRANSLATION:
-      return 9  # SV48x4 encoding allowed
-    if SV57X4_TRANSLATION:
-      return 10 # SV57x4 encoding allowed
-    if SV64X4_TRANSLATION:
-      return 11 # SV64x4 encoding allowed
-    return UNDEFINED_LEGAL_DETERMINISTIC  # No valid mode available
+definedBy:
+  extension:
+    anyOf:
+      - name: Zicbom
 
 confidence: MEDIUM
-classification: UNDECIDABLE_CONDITIONAL
 rationale: |
-  Allen Baum: "The set of legal values of a WARL field can change depending on 
-              other architectural state or parameters"
+  Labeled implementation-specific, but need Layer 2 CSR-context validation:
+  Is capacity truly a parameter (implementation chooses which to test),
+  or just discoverable (implementations have capacity, not choosing it)?
   
-  This is example case: legal set depends on 5 other boolean parameters
-  One items.enum cannot express sets assembled from multiple parameters
-  Schema shape test MISSES this case (would incorrectly classify as flat)
-  
-  Requires multi-parameter orchestration logic (beyond simple schema validation)
-  Worth flagging for expert review + dependency analysis
-  Manual classification faster than complex automation
+  GitHub #2053 research: "discoverability ≠ ISA parameter"
+  Allen's guidance: Focus on obvious parameters (WARL), surface edge cases for review.
 
 ---
 
-# CONDITIONAL CASE: Parameter-Linked Writability (UNDECIDABLE)
-kind: parameter
-name: JVT_MODE_CONDITIONAL
-long_name: "JVT.MODE - Parameter-Linked Writability"
-description: |
-  CONDITIONAL CASE: writability depends on JVT_READ_ONLY parameter.
-  
-  When JVT_READ_ONLY is set:
-  - Field becomes effectively read-only (RdOnly0)
-  - Only legal value: 0
-  - Write attempts raise IllegalInstruction
-  
-  When JVT_READ_ONLY is not set:
-  - Field is writable (RW)
-  - Legal values: 0
-  - Can set value to 0 (only option anyway)
+NOTES ON CONDITIONAL PARAMETERS (from Allen's guidance):
 
-type: conditional_single_parameter
-condition_source: JVT_READ_ONLY
-behavior_change: "Writability changes (RW vs RdOnly0), not legal-value cardinality"
+When a field's behavior changes based on context:
+1. Must exist a parameter describing the context
+2. Parameter could be extension, other parameter value, other WARL field value
+3. Field becomes functionally WARL (legal set changes by context)
+4. May not be explicitly labeled WARL in spec
+5. Requires naming each condition separately
+6. Document circumstances that apply to each condition
 
-idl_pattern: |
-  type(): JVT_READ_ONLY ? RO : RW
-  sw_write(): 
-    if JVT_READ_ONLY || (csr_value.MODE != 0):
-      raise IllegalInstruction
-    csr_value.MODE = 0
-
-confidence: MEDIUM
-classification: UNDECIDABLE_CONDITIONAL
-rationale: |
-  titoatwork: "jvt.MODE is param-linked but not in that multi-value pattern"
-  
-  This is not about legal value set size (cardinality test).
-  This is about writability (RO vs RW) controlled by parameter.
-  Mode-linked: legal set is always {0}, but writability changes
-  
-  Schema shape test would miss this (no array+items.enum pattern)
-  Requires understanding of JVT_READ_ONLY parameter state
-  Worth flagging for expert review
-
----
-
-SUMMARY FOR FALL 2026:
-
-Decidable Cases (9 + descendants from #2090 rewrite):
-✓ Can implement full validation
-✓ Schema patterns already present in IDL
-✓ Flat dependencies (single parameter source)
-✓ Can measure precision/recall reliably
-
-Undecidable Cases (multi-parameter dependencies):
-⚠️ Surface for expert review instead of automation
-⚠️ Flag all dependency sources
-⚠️ Let expert determine classification
-⚠️ Allen: "That level of effort is completely in the noise"
-
-Non-Cases (custom use, no standard enumeration):
-✗ Reject correctly (e.g., CUSTOM WARL bits)
-✗ No parameter to enumerate
-
-This narrower scope is more defensible and achievable.
+Example from Allen:
+"a RW field may become RdOnly0 [under certain extensions]"
+→ Parameter needed: FIELD_RW_CONDITION or similar
+→ Describes: which extensions make field RdOnly0
+→ Essentially WARL (set of legal values changes), even if not labeled
+→ Could have no effect on operation (value is ignored), just testing verification
