@@ -1,204 +1,145 @@
-# Updated Parameter Extraction Based on Allen Baum & titoatwork Research
-# Updated: July 31 - August 1, 2026
-# Source: GitHub issue #2251, Allen Baum feedback, titoatwork measurements
+# Updated Based on Allen Baum's Schema Guidance
+# Updated: August 1, 2026
+# Focus: Parameter identification using Allen's three schema patterns
 
 ---
 
-# DECIDABLE CASE #1: Flat Schema Pattern
+# EXAMPLE 1: Enum Schema - Discrete Values (1-64 items)
 kind: parameter
 name: CACHE_BLOCK_SIZE
 long_name: "Cache Block Size (in bytes)"
 description: |
-  WARL field that defines observable cache block size.
-  Represents both legal values and illegal-to-legal mapping.
-  Flat case: single parameter, direct schema pattern (type: array + items.enum).
+  WARL field defining cache block size.
+  Legal values: implementations choose from standard sizes.
+  Part of parameter definition: legal-value set + illegal-to-legal mapping.
 
 type: enum
-unit: bytes
 legal_values: [32, 64, 128, 256, 512, 1024, 2048, 4096]
-
-warl_behavior: true
-idl_pattern: |
-  Pattern recognized in current UDB:
-  - type(): $array_size(CACHE_BLOCK_SIZES) determines RO/RW
-  - sw_write(): $array_includes?(CACHE_BLOCK_SIZES, value) validates legal values
+schema_pattern: "enum (bitmask encoding: bit position = size selector)"
 
 spec_reference:
   manual: "RISC-V Unprivileged ISA Manual"
   section: "src/unpriv/cmo.adoc"
   excerpt: "The capacity and organization of a cache and the size of a cache block are both implementation-specific"
 
-definedBy:
-  extension:
-    anyOf:
-      - name: Zicbom
-      - name: Zicbop
-      - name: Zicboz
-
 confidence: HIGH
-classification: DECIDABLE_FLAT
 rationale: |
-  Allen Baum: "If something is WARL, it is a parameter"
-  This is a flat case: legal values defined by single parameter (CACHE_BLOCK_SIZES)
-  IDL already uses $array_includes? pattern (decidable)
-  Belongs in 9-case decidable subset (or descendants from migration #2090)
+  Allen Baum: "Focus is primarily to find parameters. WARL are obvious cases."
+  This is an obvious WARL field. Implementations choose which sizes to support.
+  Legal-value set is clearly enumerable (8 standard values).
 
 ---
 
-# DECIDABLE CASE #2: Cardinality-Based Writability
+# EXAMPLE 2: Mask:Value{;State} Schema - Conditional Values
 kind: parameter
-name: MSTATUS_FS_LEGAL_VALUES
-long_name: "MSTATUS.FS Legal Values"
+name: HGATP_MODE
+long_name: "Hypervisor Guest Address Translation Mode"
 description: |
-  Legal value set for MSTATUS.FS field (floating-point state).
-  FLAT case: uses $array_size for RO/RW determination.
-  
-  From titoatwork measurements:
-  - FS field does NOT say WARL in description
-  - But schema uses $array_includes?(MSTATUS_FS_LEGAL_VALUES) on write
-  - This is decidable flat pattern
+  Encodes valid virtual-memory translation modes for guest VMs.
+  Legal values constrained by nested-subset rule:
+  - If SV48 is legal, SV39 must be legal
+  - If SV57 is legal, SV48 and SV39 must be legal
+  - Cannot be superset of SATP (hypervisor constraint)
 
-type: array
-items:
-  type: integer
-  enum: [0, 1, 2, 3]
+type: enum_constrained
+schema_pattern: "mask:value{;state} - 16-bit bitmask enum"
+legal_values: [BARE, SV39, SV39+SV48, SV39+SV48+SV57]
+constraint: "nested_subset"
+conditional_on: "architecture state (RV32 vs RV64)"
 
-warl_behavior: true
-idl_pattern: |
-  type(): $array_size(MSTATUS_FS_LEGAL_VALUES) determines RO/RW
-  sw_write(): $array_includes?(MSTATUS_FS_LEGAL_VALUES, value) validates
-  reset_value(): Determined by implementation choice
-
-confidence: HIGH
-classification: DECIDABLE_FLAT
-rationale: |
-  One of 9 parameters identified by titoatwork (exact list provided)
-  Flat schema: array+items.enum with direct IDL reference
-  Legal set depends on single parameter source (itself)
-  No multi-parameter dependencies
-  Belongs in decidable subset
-
----
-
-# CONDITIONAL CASE: Multi-Parameter Dependency (UNDECIDABLE)
-kind: parameter
-name: HGATP_MODE_CONDITIONAL
-long_name: "HGATP.MODE - Conditional Legal Set (Multi-Parameter Source)"
-description: |
-  CONDITIONAL CASE showing complexity that cannot be automated with simple schema shape test.
-  
-  Legal value set for HGATP.MODE depends on 5 DIFFERENT SOURCES:
-  - GSTAGE_MODE_BARE (boolean parameter)
-  - SV39X4_TRANSLATION (boolean parameter)
-  - SV48X4_TRANSLATION (boolean parameter)
-  - SV57X4_TRANSLATION (boolean parameter)
-  - SV64X4_TRANSLATION (boolean parameter)
-  
-  For each combination of these 5 booleans, different legal values allowed.
-  IDL: sw_write returns UNDEFINED_LEGAL_DETERMINISTIC unless matching parameter set
-
-type: conditional_multi_parameter
-condition_sources:
-  - parameter: GSTAGE_MODE_BARE
-    role: "When set, enables Bare mode"
-  - parameter: SV39X4_TRANSLATION
-    role: "When set, enables SV39x4 translation mode"
-  - parameter: SV48X4_TRANSLATION
-    role: "When set, enables SV48x4 translation mode"
-  - parameter: SV57X4_TRANSLATION
-    role: "When set, enables SV57x4 translation mode"
-  - parameter: SV64X4_TRANSLATION
-    role: "When set, enables SV64x4 translation mode"
-
-idl_pattern: |
-  sw_write(write_value):
-    if GSTAGE_MODE_BARE:
-      return 0  # Bare mode allowed
-    if SV39X4_TRANSLATION:
-      return 8  # SV39x4 encoding allowed
-    if SV48X4_TRANSLATION:
-      return 9  # SV48x4 encoding allowed
-    if SV57X4_TRANSLATION:
-      return 10 # SV57x4 encoding allowed
-    if SV64X4_TRANSLATION:
-      return 11 # SV64x4 encoding allowed
-    return UNDEFINED_LEGAL_DETERMINISTIC  # No valid mode available
+spec_reference:
+  manual: "RISC-V Privileged ISA Manual"
+  section: "hgatp.yaml"
+  note: "Constraint logic requires expert interpretation"
 
 confidence: MEDIUM
-classification: UNDECIDABLE_CONDITIONAL
+classification: "CONDITIONAL_PARAMETER"
 rationale: |
-  Allen Baum: "The set of legal values of a WARL field can change depending on 
-              other architectural state or parameters"
+  Allen Baum: "In this case, I believe the spec says that for a valid SV value, 
+  the encodings of all the smaller ones must also be legal."
   
-  This is example case: legal set depends on 5 other boolean parameters
-  One items.enum cannot express sets assembled from multiple parameters
-  Schema shape test MISSES this case (would incorrectly classify as flat)
+  This is parameter identification: hgatp.MODE IS a legal-value parameter.
+  The exact constraint logic (nested subsets, SATP comparison) requires 
+  expert review and formal specification.
   
-  Requires multi-parameter orchestration logic (beyond simple schema validation)
-  Worth flagging for expert review + dependency analysis
-  Manual classification faster than complex automation
+  Do NOT attempt to extract all valid combinations.
+  DO identify: this is a parameter + name it + flag constraint type.
 
 ---
 
-# CONDITIONAL CASE: Parameter-Linked Writability (UNDECIDABLE)
+# EXAMPLE 3: Conditional WARL - RdOnly0 Case
 kind: parameter
-name: JVT_MODE_CONDITIONAL
-long_name: "JVT.MODE - Parameter-Linked Writability"
+name: EXAMPLE_CONDITIONAL_WARL
+long_name: "Field That Becomes RdOnly0 Under Conditions"
 description: |
-  CONDITIONAL CASE: writability depends on JVT_READ_ONLY parameter.
+  Demonstrates conditional WARL pattern from Allen's guidance:
   
-  When JVT_READ_ONLY is set:
-  - Field becomes effectively read-only (RdOnly0)
-  - Only legal value: 0
-  - Write attempts raise IllegalInstruction
+  Normal state (condition not met):
+  - Field is RW (read-write)
+  - Legal values: {0, 1}
   
-  When JVT_READ_ONLY is not set:
-  - Field is writable (RW)
-  - Legal values: 0
-  - Can set value to 0 (only option anyway)
+  Conditional state (extension/feature enabled):
+  - Field becomes RdOnly0
+  - Legal values: {0} only
+  - Write attempts have no effect (value is ignored)
 
-type: conditional_single_parameter
-condition_source: JVT_READ_ONLY
-behavior_change: "Writability changes (RW vs RdOnly0), not legal-value cardinality"
+type: enum_conditional
+schema_pattern: "mask:value{;state}"
+conditions:
+  - state: "base (feature not implemented)"
+    legal_values: [0, 1]
+    behavior: "RW"
+  - state: "feature implemented"
+    legal_values: [0]
+    behavior: "RdOnly0"
 
-idl_pattern: |
-  type(): JVT_READ_ONLY ? RO : RW
-  sw_write(): 
-    if JVT_READ_ONLY || (csr_value.MODE != 0):
-      raise IllegalInstruction
-    csr_value.MODE = 0
+depends_on: "Feature or extension implementation state"
 
 confidence: MEDIUM
-classification: UNDECIDABLE_CONDITIONAL
+classification: "CONDITIONAL_WARL"
 rationale: |
-  titoatwork: "jvt.MODE is param-linked but not in that multi-value pattern"
+  Allen Baum: "Sometimes a WARL field isn't explicitly labelled WARL, but 
+  become one under certain contexts... that makes this bit functionally WARL, 
+  and thus needs a parameter value."
   
-  This is not about legal value set size (cardinality test).
-  This is about writability (RO vs RW) controlled by parameter.
-  Mode-linked: legal set is always {0}, but writability changes
-  
-  Schema shape test would miss this (no array+items.enum pattern)
-  Requires understanding of JVT_READ_ONLY parameter state
-  Worth flagging for expert review
+  Key insight: Not all WARL fields are explicitly labeled.
+  This is a parameter because legal-value set changes based on state.
+  Encoding: mask:value{;state} with explicit condition.
 
 ---
 
-SUMMARY FOR FALL 2026:
+# SCHEMA PATTERNS REFERENCE
 
-Decidable Cases (9 + descendants from #2090 rewrite):
-✓ Can implement full validation
-✓ Schema patterns already present in IDL
-✓ Flat dependencies (single parameter source)
-✓ Can measure precision/recall reliably
+PATTERN 1: Simple Enum (1-64 values)
+- Used for: Discrete choice fields with fixed legal set
+- Encoding: List values or bitmask (bit position = value)
+- Example: CACHE_BLOCK_SIZE with 8 standard sizes
 
-Undecidable Cases (multi-parameter dependencies):
-⚠️ Surface for expert review instead of automation
-⚠️ Flag all dependency sources
-⚠️ Let expert determine classification
-⚠️ Allen: "That level of effort is completely in the noise"
+PATTERN 2: Mask:Value{;State} (Conditional)
+- Used for: Legal set depends on architectural state
+- Encoding: Bitmask + state condition description
+- Example: HGATP_MODE (nested-subset constraint)
+- Example: RdOnly0 fields (RW vs RO based on extension)
 
-Non-Cases (custom use, no standard enumeration):
-✗ Reject correctly (e.g., CUSTOM WARL bits)
-✗ No parameter to enumerate
+PATTERN 3: Range_Hi:Range_Lo (Wide Addresses)
+- Used for: Fields wider than 64 bits
+- Encoding: Upper and lower bounds (instead of full array)
+- Reason: 2^57 element array is impractical
+- Example: Address translation fields on RV128
 
-This narrower scope is more defensible and achievable.
+---
+
+WHAT FALL 2026 SHOULD FOCUS ON
+
+1. IDENTIFY: Which fields are parameters?
+2. CLASSIFY: Which schema pattern applies?
+3. VALIDATE: Expert review for undecidable cases
+
+Do NOT try to extract constraint combinations.
+Do NOT claim 100% automation on complex cases.
+Do focus on accuracy over completeness.
+
+Allen Baum: "If we have to classify something by hand for 18 undecidable cases, 
+I think that level of effort is completely in the noise."
+
+Manual review is acceptable. Build good identification first.

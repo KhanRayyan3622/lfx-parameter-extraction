@@ -1,138 +1,161 @@
-ALLEN BAUM'S CRITICAL DISCOVERY: MULTI-PARAMETER DEPENDENCIES
-Documented: August 1, 2026 (from GitHub issue #2251)
+ALLEN BAUM'S GUIDANCE ON PARAMETER IDENTIFICATION & SCHEMA
+Documented: August 1, 2026 (Latest clarifications from Slack)
 
 ---
 
-THE PROBLEM WITH SCHEMA-SHAPE-ONLY APPROACH:
+CORE PRINCIPLE: FOCUS ON PARAMETER IDENTIFICATION, NOT COMBINATIONS
 
-Allen Baum discovered the real complexity:
-"The set of legal values of a WARL field can change depending on other 
-architectural state or parameters... Worth scoping 'decidable' tighter than 
-it first looked."
+Allen Baum clarified the actual goal:
+"I think the focus is primarily to find parameters. WARL are obvious cases. 
+The WARL schema is primarily to be able restrict the values that will be tested, 
+since (depending on the size of the field) the list can be ... large."
 
-Simple schema-shape test (type: array + items.enum) finds FLAT cases.
-But WARL fields often have MULTI-PARAMETER DEPENDENCIES.
-
----
-
-HARD EXAMPLES FROM CURRENT UDB:
-
-Example 1: hgatp.MODE (5-Parameter Source)
-Legal values depend on 5 different boolean parameters:
-- GSTAGE_MODE_BARE
-- SV39X4_TRANSLATION
-- SV48X4_TRANSLATION
-- SV57X4_TRANSLATION
-- SV64X4_TRANSLATION
-
-For each combination, different mode values allowed.
-One items.enum cannot express this relationship.
-
-Example 2: jvt.MODE (Parameter-Linked Writability)
-Legal values depend on JVT_READ_ONLY:
-- When JVT_READ_ONLY = true: RdOnly0 (only 0 allowed)
-- When JVT_READ_ONLY = false: RW (but only 0 valid anyway)
-
-Not a cardinality difference - a writability change.
-Schema shape test finds no items.enum - misses it.
+What matters: Identifying what IS a parameter
+What doesn't matter: Extracting all valid combinations of conditions
 
 ---
 
-WHAT'S ACTUALLY DECIDABLE:
+THE THREE SCHEMA PATTERNS FOR LEGAL VALUES
 
-titoatwork identified 9 parameters + descendants that ARE decidable:
-1. MSTATUS_FS_LEGAL_VALUES
-2. MSTATUS_VS_LEGAL_VALUES
-3. MTVEC_MODES
-4. STVEC_MODES
-5. VSTVEC_MODES
-6. SXLEN
-7. UXLEN
-8. VSXLEN
-9. VUXLEN
+Allen proposed three schema patterns for encoding legal-value parameters:
 
-Plus 4 descendants from PR #2090 rewrite:
-- STVEC_MODES (replaced STVEC_MODE_DIRECT, STVEC_MODE_VECTORED)
-- VSTVEC_MODES (replaced VSTVEC_MODE_DIRECT, VSTVEC_MODE_VECTORED)
+1. ENUM (Discrete Values)
+   - List of 1-64 legal values
+   - Two encoding classes:
+     a) Bitmask: bit position encodes the value
+     b) Struct: size field + array of that size
+   - Example: {BARE, SV39, SV39+SV48, SV39+SV48+SV57}
+   - Works well for most cases
 
-These 9+ cases share pattern:
-- type: array with items.enum
-- Direct IDL reference: $array_includes? or $array_size
-- Single parameter source
-- Flat, automatable
+2. MASK:VALUE{;STATE} (Conditional Values)
+   - Format: mask:value pair, optionally with state condition
+   - Used when legal set depends on architectural state
+   - Encodes the condition that determines legality
+   - Example: 16-bit bitmask with conditional nesting
 
----
-
-CHARACTERISTICS OF DECIDABLE CASES:
-
-From titoatwork measurements:
-1. Do NOT explicitly say "WARL" in field descriptions
-2. Must look at IDL (sw_write, type(), reset_value())
-3. Two clean patterns:
-   - $array_size(PARAM): Determines RO/RW cardinality
-   - $array_includes?(PARAM, value): Validates value is legal
-4. Both patterns reference same array+items.enum parameter
-5. No multi-parameter orchestration needed
-
-Example (stvec.MODE):
-- type(): $array_size(STVEC_MODES) determines if RO/RW
-- sw_write(): $array_includes?(STVEC_MODES, value) validates legal
-
-This is decidable and automatable.
+3. RANGE_HI:RANGE_LO (Address Ranges)
+   - For fields wider than 64 bits
+   - Used for address-like legal values
+   - Would need array of 2^57 elements if encoded as full enum
+   - More practical to express as range constraints
 
 ---
 
-CHARACTERISTICS OF UNDECIDABLE CASES:
+CRITICAL CLARIFICATION: THE 9 PARAMETERS WITH TYPE:ARRAY
 
-1. Multi-parameter sources (2+ parameters feed into legal set)
-   Example: hgatp.MODE from 5 boolean parameters
-   
-2. Parameter-linked but non-enumeration
-   Example: jvt.MODE - writability from JVT_READ_ONLY
-   
-3. Complex conditional logic in sw_write()
-   Example: Multiple if-else branches, UNDEFINED_LEGAL_DETERMINISTIC
-   
-4. Cannot be expressed as single items.enum
-   Example: Legal set changes based on runtime parameter values
+Allen: "Look closer. That is really an enum pattern, which is technically 
+a list of legal values, and that doesn't work everywhere."
 
-These require expert review, not automation.
+This means:
+- The 9 existing array parameters ARE using enum encoding
+- But enum encoding only works for values 1-64 in size
+- Wider fields need range_hi:range_lo pattern instead
+- Don't key on "type:array shape" - key on parameter identification
+
+The real lesson: Focus on identifying which fields ARE parameters, 
+then encode them using the appropriate schema (enum, mask:value, range).
 
 ---
 
-FALL 2026 REVISED SCOPE:
+HGATP.MODE: CORRECT INTERPRETATION
 
-Layer 2 should:
-1. Identify decidable cases (9+ parameters with flat patterns)
-   - Parse IDL for $array_includes? and $array_size patterns
-   - Verify single-parameter source
-   - Build validation logic
+Allen: "I don't think I was the one that said hgatp.MODE pulls from 5 parameters."
 
-2. Flag conditional cases
-   - Detect multi-parameter dependencies
-   - List all dependency sources
-   - Surface for expert review
+Correct interpretation:
+- hgatp.MODE encodes virtual memory address-space translations
+- Legal values follow nested-subset constraint: 
+  * If SV48 is legal, then SV39 must also be legal
+  * If SV57 is legal, then SV48 and SV39 must be legal
+- Also constrained: cannot be superset of SATP (hypervisor constraint)
+- Encoded as: 16-bit enum bitmask with bits set for {BARE, SV39, SV39+SV48, SV39+SV48+SV57}
 
-3. Don't try to automate multi-parameter orchestration
-   - Allen: "It will take more effort to get an AI agent to figure it out 
-            than to just do it by hand"
-   - Effort is "completely in the noise" (maybe 5-10 cases)
-   - Manual review is faster
-
-4. Report findings correctly:
-   - Decidable subset: full metrics + variance
-   - Conditional subset: dependency analysis + flagged for review
-   - No claims on precision/recall for conditional cases
+What matters: hgatp.MODE IS a legal-value parameter
+What doesn't matter: Extracting all valid combinations from prose
+The LLM should identify: "This is a legal-value parameter" + name it
+Expert review determines: The exact constraint logic and encoding
 
 ---
 
-KEY INSIGHT FROM RESEARCH:
+CONDITIONAL PARAMETERS: WHEN THEY EXIST
 
-Allen Baum clarified what the actual problem is:
-- Not about extracting WARL fields (fairly obvious)
-- Real work: understanding multi-parameter dependencies
-- Automation works for: flat cases (9+ parameters)
-- Automation fails for: conditional cases (need expert)
-- Right approach: hybrid (automated + review)
+Allen: "Sometimes a WARL field isn't explicitly labelled WARL, but become one 
+under certain contexts (e.g a RW field may become RdOnly0, which means the 
+set of legal values change."
 
-This is much more realistic and defensible for Fall 2026.
+Pattern:
+- Field is RW under normal conditions → legal values {0, 1}
+- Field becomes RdOnly0 under specific extensions → legal values {0}
+- The shift in legal-value set makes it a parameter
+
+Encoding: mask:value{;state} pattern with condition specified
+
+---
+
+PARAMETER IDENTIFICATION VS COMBINATION EXTRACTION
+
+Allen: "I don't think we even care that an LLM extracts the valid combinations 
+(though there should be code to validate it somewhere). We care that it 
+identifies the legal parameter(s)."
+
+This means:
+- ✅ DO: Identify that a field has legal-value constraints
+- ✅ DO: Identify which parameters control those constraints
+- ✅ DO: Name the parameter and flag it for expert classification
+- ❌ DON'T: Try to extract all valid combinations from prose
+- ❌ DON'T: Claim to have solved the constraint logic
+
+The constraint logic requires expert review and potentially formal specification.
+
+---
+
+ENCODING PRACTICAL GUIDANCE
+
+Allen: "Having just one way to do it is advantageous, in my view, and I don't 
+know how many cases where that second encoding actually gets used as it is 
+only necessary when a legal value is >64."
+
+Practical approach for Fall 2026:
+1. Identify parameters (LLM task)
+2. Classify into schema type (LLM + expert)
+3. For enum: list the values (if <64) or use bitmask
+4. For wider fields: use range or flag for expert review
+5. For conditional: identify the condition, let expert formalize
+
+Focus on the first step. Don't get stuck on encoding perfection.
+
+---
+
+WARL FIELDS: OBVIOUS STARTING POINT
+
+Allen: "WARL are obvious cases. There aren't so many WARL fields (that are 
+larger than a single bit, which is trivial to handle) that we can't fill in 
+those details by hand if need be."
+
+Strategy:
+- Start with explicitly labeled WARL fields (obvious)
+- Extend to conditionally-WARL fields (RdOnly0 cases)
+- Hand-fill details for complex cases (18 undecidable)
+- Don't try to automate 100% - 80-90% extraction + manual refinement is fine
+
+---
+
+SUMMARY FOR FALL 2026
+
+Three-tier approach:
+1. **Identify parameters** (automated LLM extraction)
+   - What fields have legal-value constraints?
+   - What parameters control those constraints?
+   - Which are obviously WARL, which are conditional?
+
+2. **Classify schema type** (LLM + expert review)
+   - enum (1-64 values): list them
+   - mask:value{;state}: identify condition
+   - range_hi:range_lo: set bounds
+   - conditional: flag for expert
+
+3. **Validate & refine** (expert review)
+   - Manual review for undecidable cases
+   - Build validation code to check constraints
+   - Refine based on spec text interpretation
+
+This is grounded, defensible, and aligns with Allen's actual guidance.

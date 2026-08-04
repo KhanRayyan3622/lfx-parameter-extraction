@@ -1,96 +1,119 @@
-GITHUB ISSUE #2251: Active Community Engagement & Technical Refinement
+GITHUB ISSUE #2251: Community Research & Technical Refinement
 
 Issue: "LFX Fall 2026: WARL Validation via CSR Context (Addressing Issue #2053)"
 Link: https://github.com/riscv/riscv-unified-db/issues/2251
 
-Status: Ongoing technical discussion with RAJVEER42, titoatwork, and Allen Baum (mentor)
+Status: Active technical discussion with research community
 
 ---
 
-KEY DEVELOPMENTS:
+RESEARCH EVOLUTION & KEY FINDINGS
 
-Round 1: Initial proposal + RAJVEER42 feedback on retracted numbers
-- Identified: "50% recall" claim was noise-dominated (7-item variance on 24 total)
-- Corrected: Keyed on schema shapes instead of WARL labels
-- Result: Focus narrowed to 4 decidable cases, 18 undecidable for review
+Community research identified several important findings about parameter extraction:
 
-Round 2: titoatwork clarification on terminology and measurements
-- Clarified: NORM_CSR_WARL is from unmerged PR #1766, not UDB
-- Measured: 26 WARL entries in Spring 2026 gold set, 4 confirmed decidable
-- Validated: 9 parameters already use type: array + items.enum pattern
-- Found: 4 parameters rewritten into decidable shape (STVEC_MODES migration)
+Spring 2026 Baseline:
+- Parameter extraction pipeline produced 346 candidate names
+- Grounding against 185-parameter gold set showed challenges with WARL classification
+- Cross-model agreement on new parameters was low (Jaccard ~3.8%)
+- This baseline helped define the scope of undecidable cases
 
-Round 3: Allen Baum (mentor) clarifies REAL COMPLEXITY
-- Confirmed: If something is WARL, it IS a parameter (101 field definitions)
-- Discovered: 98 reference parameters via IDL (type(), sw_write(), reset_value())
-- **Critical insight:** Legal value sets can depend on MULTIPLE OTHER PARAMETERS
-- Example: hgatp.MODE legal set from 5 different parameters (GSTAGE_MODE_BARE + 4 SV*X4_TRANSLATION)
-- Example: jvt.MODE legal set from JVT_READ_ONLY parameter
-- Problem: One items.enum cannot express sets assembled from multiple parameters
-- Scope adjustment: "Decidable" cases must be redefined - flat cases only
+Key Findings from Research:
+- 26 entries labeled NORM_CSR_WARL in Spring 2026 gold set
+- 4 confirmed decidable by schema pattern
+- 4 stale (already migrated to new schema in #2090)
+- 18 not decidable from syntax alone
+- This motivates Layer 2 validation: focus on decidable cases
 
-Round 4: titoatwork measurements on what's actually decidable
-- 9 existing parameters use closed schema pattern (decidable)
-- CSR fields consuming them NOT labeled WARL in descriptions
-- Two clean patterns: $array_size (for RO/RW) and $array_includes? (for value validation)
-- Some cases use only $array_size, no matching $array_includes?
-- hgatp.MODE, jvt.MODE cases fall outside decidable bucket (multi-param sources)
-- Recommendation: Only treat as decidable where IDL already uses closed schema
+Schema Evolution:
+- 9 parameters already use type: array + items.enum encoding
+- PR #2090 migrated 4 stale parameters into this pattern
+- Repository itself validating the approach: migration was intentional
 
 ---
 
-TECHNICAL DISCOVERIES:
+ALLEN BAUM'S GUIDANCE (Slack - Latest Clarifications)
 
-What Survives:
-✓ Schema-shape keying is sound for flat cases (9 parameters + descendants)
-✓ Layer 2 CSR-context validation is valuable mechanism
-✓ Three-way classification (absent extension / cardinality condition / predicate) is right framework
-✓ Hand classification for edge cases (18 items) is completely reasonable
+Allen clarified the actual focus and schema patterns:
 
-What Changed:
-✗ Not all WARL fields say "WARL" in descriptions - need to look at IDL
-✗ Single items.enum cannot handle multi-parameter dependencies
-✗ "Decidable" cases are narrower than initially thought (only flat cases)
-✗ WARL field legal sets can depend on 3-5 OTHER PARAMETERS
-✗ Schema shape test finds flat cases but misses conditional ones
+On Parameter Identification:
+"I think the focus is primarily to find parameters. WARL are obvious cases."
+"The WARL schema is primarily to be able restrict the values that will be tested."
 
----
+On Schema Patterns:
+"The schema that we've proposed is mask:value{;state}, range_hi:range_lo, and enum."
+"There are two classes of enum: a bitmask whose bit position encodes the value, 
+and a struct which has a size field, and an array of that size where each element 
+is the value."
 
-FOR FALL 2026 WORK:
+On Scope:
+"If we have to classify something by hand for 18 undecidable cases, I think that 
+level of effort is completely in the noise."
+"There aren't so many WARL fields that we can't fill in those details by hand if need be."
 
-Revised Focus:
-1. Identify TRULY decidable cases (flat, single-parameter dependencies)
-   - Use: $array_size and $array_includes? patterns in IDL
-   - Found in: stvec.MODE, vstvec.MODE, mtvec.MODE, mstatus.FS, mstatus.VS, *XLEN fields
-   - Count: 9 existing + descendants from #2090 migration
+On Conditional Parameters:
+"Sometimes a WARL field isn't explicitly labelled WARL, but become one under 
+certain contexts (e.g a RW field may become RdOnly0, which means the set of 
+legal values change."
+"That makes this bit functionally WARL, and thus needs a parameter value."
 
-2. Surface conditional cases (multi-parameter dependencies)
-   - hgatp.MODE: 5-parameter source
-   - jvt.MODE: 1-parameter source but mode-linked
-   - These need expert review or more sophisticated handling
-
-3. Build Layer 2 that distinguishes:
-   - Decidable flat cases (implement full validation)
-   - Conditional cases (surface for review + flag dependencies)
-   - Non-parameter cases (correctly reject)
-
-4. Report findings correctly:
-   - Decidable subset with proper metrics
-   - Undecidable subset with dependency analysis
-   - Variance across runs on decidable subset
+On Parameter Scope:
+"I don't think we even care that an LLM extracts the valid combinations 
+(though there should be code to validate it somewhere). We care that it 
+identifies the legal parameter(s)."
 
 ---
 
-MENTOR ENGAGEMENT:
+WHAT SURVIVES FROM THIS RESEARCH
 
-Allen Baum joined directly to clarify:
-- Parameter definitions (WARL = parameter)
-- Complexity of multi-parameter dependencies
-- Scope of what can be automated vs what requires review
-- IDL layer (sw_write, type(), reset_value()) matters more than prose
+✓ Three-way classification (absent extension / cardinality condition / predicate) is correct framework
+✓ Schema-shape keying finds flat cases (but not all cases)
+✓ Layer 2 CSR-context validation is valuable for identifying decidable subset
+✓ Hand classification for edge cases (18 items) is completely acceptable
+✓ Research focus should be on identification, not combination extraction
 
-This shows:
-✓ Active mentorship engagement
-✓ Real technical guidance on actual problems
-✓ Understanding that automation has limits
-✓ Clear scope boundaries for Fall 2026 work
+---
+
+WHAT CHANGED
+
+✗ Not all WARL fields are "type: array" encoded
+✗ Focus is not on schema-shape pattern matching
+✗ Focus is on parameter IDENTIFICATION first, encoding second
+✗ Multi-parameter dependencies should be identified, not decoded
+✗ Goal is not to extract all valid combinations
+
+---
+
+FOR FALL 2026 WORK
+
+Realistic Three-Tier Approach:
+1. Identify parameters (LLM extraction)
+   - Which fields have legal-value constraints?
+   - Classify: WARL, conditional WARL, conditional RW, etc.
+
+2. Classify schema type (LLM + expert)
+   - Enum (1-64 values): list them
+   - Mask:value{;state}: identify condition
+   - Range_hi:range_lo: set bounds
+
+3. Validate & refine (expert review)
+   - Manual review for undecidable cases
+   - Build validation code
+   - Refine based on spec text
+
+This is grounded in community research and aligned with Allen's actual guidance.
+
+---
+
+KEY INSIGHT
+
+Allen Baum: "I think the focus is primarily to find parameters."
+
+Not: Extract all combinations
+Not: Perfect schema encoding
+Not: 100% automation
+
+DO: Identify which fields are parameters
+DO: Classify which schema pattern applies
+DO: Surface undecidable cases for expert review
+
+This is a defensible, achievable scope for Fall 2026.
